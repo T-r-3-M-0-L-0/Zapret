@@ -7,14 +7,14 @@
 from __future__ import annotations
 
 import json
-import os
 import sys
 import time
 from itertools import zip_longest
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import Request
+from proxy.utils import build_github_opener
 
 REPO = "Flowseal/tg-ws-proxy"
 RELEASES_LATEST_API = f"https://api.github.com/repos/{REPO}/releases/latest"
@@ -36,13 +36,8 @@ _state: Dict[str, Any] = {
 
 def _cache_file() -> Optional[Path]:
     try:
-        if sys.platform == "win32":
-            root = Path(os.environ.get("APPDATA", str(Path.home()))) / "TgWsProxy"
-        elif sys.platform == "darwin":
-            root = Path.home() / "Library/Application Support/TgWsProxy"
-        else:
-            xdg = os.environ.get("XDG_CONFIG_HOME")
-            root = (Path(xdg).expanduser() if xdg else Path.home() / ".config") / "TgWsProxy"
+        from utils.tray_common import APP_DIR
+        root = APP_DIR
         root.mkdir(parents=True, exist_ok=True)
         return root / ".update_check_cache.json"
     except OSError:
@@ -73,7 +68,7 @@ def _parse_version_tuple(s: str) -> tuple:
         return (0,)
     parts = []
     for seg in s.split("."):
-        digits = "".join(c for c in seg if c.isdigit())
+        digits = next((seg[:i] for i, c in enumerate(seg) if not c.isdigit()), seg)
         if digits:
             try:
                 parts.append(int(digits))
@@ -135,7 +130,7 @@ def fetch_latest_release(
         method="GET",
     )
     try:
-        with urlopen(req, timeout=timeout) as resp:
+        with build_github_opener().open(req, timeout=timeout) as resp:
             code = getattr(resp, "status", None) or resp.getcode()
             new_etag = resp.headers.get("ETag")
             raw = resp.read().decode("utf-8", errors="replace")
@@ -257,19 +252,29 @@ def get_update_asset(exe_path: Path) -> Optional[Tuple[str, str]]:
         pass
 
     # Fallback
+    import platform
     import struct
+
     is_64 = struct.calcsize("P") * 8 == 64
+    machine = platform.machine().lower()
+    is_arm64 = machine in ("arm64", "aarch64")
+
     try:
         is_modern = sys.getwindowsversion().major >= 10
     except Exception:
         is_modern = True
-    if is_modern:
+
+    if is_arm64:
+        name = "TgWsProxy_windows_arm64.exe"
+    elif is_modern:
         name = "TgWsProxy_windows.exe"
     elif is_64:
         name = "TgWsProxy_windows_7_64bit.exe"
     else:
         name = "TgWsProxy_windows_7_32bit.exe"
+
     for a in assets:
         if a.get("name") == name:
             return a["url"], a["name"]
+
     return None
