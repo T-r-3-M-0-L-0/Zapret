@@ -114,3 +114,7 @@ turbopages.org
 webvisor.com
 webvisor.org
 t-bank-app.ru
+sharepoint.com
+gallery.vsassets.io
+gallerycdn.vsassets.io
+steamcommunity.com
