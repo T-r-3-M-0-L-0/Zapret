@@ -97,3 +97,218 @@ xsts.auth.xboxlive.com
 user.auth.xboxlive.com
 title.mgl.xboxlive.com
 xkms.xboxlive.com
+
+# Rockstar Games / GTA / Social Club
+rockstargames.com
+rockstarnorth.com
+rockstarsocialclub.com
+socialclub.rockstargames.com
+rgl.rockstargames.com
+prs.rockstargames.com
+
+# Blizzard / Battle.net
+battle.net
+blizzard.com
+blz-contentstack.com
+
+# Activision / Call of Duty
+activision.com
+callofduty.com
+
+# Bungie / Destiny
+bungie.net
+
+# Wargaming / World of Tanks
+wargaming.net
+worldoftanks.ru
+worldofwarships.ru
+worldofwarplanes.ru
+
+# FaceIT
+faceit.com
+faceit-cdn.net
+
+# GOG / CD Projekt
+gog.com
+gog-statics.com
+cdprojektred.com
+cdprojekt.com
+
+# Itch.io
+itch.io
+itch.zone
+
+# Bethesda / Zenimax
+bethesda.net
+zenimax.com
+bethesdanet.com
+
+# Square Enix
+square-enix.com
+squareenix.com
+finalfantasyxiv.com
+
+# Bandai Namco
+bandainamcoent.eu
+bandainamcoent.com
+bandai NamcoCDN.com
+
+# Nexon
+nexon.net
+nexon.com
+nexoncdn.co.kr
+
+# Pearl Abyss / Black Desert
+pearlabyss.com
+playblackdesert.com
+
+# Kakao Games
+kakaogames.com
+
+# Krafton / PUBG
+krafton.com
+pubg.com
+pubgesports.com
+
+# miHoYo / HoYoverse / Genshin Impact / Honkai
+hoyoverse.com
+mihoyo.com
+genshinimpact.com
+honkaistarrail.com
+zenlesszonezero.com
+honkaiimpact3.com
+mihayou.com
+
+# Supercell
+supercell.com
+supercellgames.com
+supercell.helpshift.com
+seeurlpcl.com
+
+# Roblox
+roblox.com
+rbxcdn.com
+roblox-api.com
+roblox.plus
+
+# Nintendo
+nintendo.com
+nintendo.net
+nintendo.co.jp
+nintendoswitch.com
+
+# Sony / PlayStation
+playstation.com
+playstation.net
+sonyentertainmentnetwork.com
+api.playstation.com
+auth.api.sonyentertainmentnetwork.com
+
+# ArenaNet / Guild Wars 2
+arenanet.com
+guildwars2.com
+gw2.com
+
+# Digital Extremes / Warframe
+warframe.com
+digitalextremes.com
+
+# Grinding Gear Games / Path of Exile
+pathofexile.com
+grindinggear.com
+poe.game
+
+# Battlestate Games / Escape from Tarkov
+escapefromtarkov.com
+battlestategames.com
+bsgcdn.com
+
+# Garena
+grerenow.com
+grerena.com
+
+# Jagex / RuneScape
+jagex.com
+runescape.com
+runescape.wiki
+
+# Funcom / Conan Exiles
+funcom.com
+conanexiles.com
+
+# Standing Stone Games / LOTRO
+standingstonegames.com
+lotro.com
+ddo.com
+
+# Daybreak / EverQuest
+daybreakgames.com
+
+daybreakgames.net
+
+# CCP Games / EVE Online
+ccpgames.com
+eveonline.com
+
+# ZeniMax Online / ESO
+zenimaxonline.com
+elderscrollsonline.com
+
+# Arena Breakout
+arenabreakout.com
+
+# Lost Ark
+lostark.com
+playlostark.com
+
+# New World
+newworld.com
+playnewworld.com
+
+# Amazon Games
+amazongames.com
+
+# Scopely
+scopely.com
+
+# Kabam
+kabam.com
+
+# Niantic / Pokemon GO
+nianticlabs.com
+niantic.com
+
+# Discord (additional)
+discordapp.com
+discord.gg
+discord.media
+discordapp.net
+discordstatus.com
+cdn.discordapp.com
+media.discordapp.net
+images-ext-1.discordapp.net
+gateway.discord.gg
+
+# Twitch (additional)
+twitchcdn.net
+twitchsvc.net
+jtvnw.net
+
+# Emulation / Retro
+retroarch.com
+libretro.com
+citra-emu.org
+dolphin-emu.org
+rpcs3.net
+ryujinx.org
+desmume.org
+ppsspp.org
+fceux.com
+snes9x.com
+
+# Anti-cheat (additional)
+punkbuster.com
+gameguard.ac
+nprotect.net
+xigncode.com
+wellbia.com
