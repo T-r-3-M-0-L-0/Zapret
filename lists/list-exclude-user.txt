@@ -278,17 +278,6 @@ kabam.com
 nianticlabs.com
 niantic.com
 
-# Discord (additional)
-discordapp.com
-discord.gg
-discord.media
-discordapp.net
-discordstatus.com
-cdn.discordapp.com
-media.discordapp.net
-images-ext-1.discordapp.net
-gateway.discord.gg
-
 # Twitch (additional)
 twitchcdn.net
 twitchsvc.net
