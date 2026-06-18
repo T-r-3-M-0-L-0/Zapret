@@ -1,5 +1,5 @@
 @echo off
-set "LOCAL_VERSION=1.9.8c"
+set "LOCAL_VERSION=1.9.9c"
 
 :: External commands
 if "%~1"=="status_zapret" (
@@ -53,6 +53,7 @@ if "%1"=="admin" (
 
 :: MENU ================================
 setlocal EnableDelayedExpansion
+title ZAPRET SERVICE MANAGER v!LOCAL_VERSION!
 :menu
 cls
 call :ipset_switch_status
@@ -115,7 +116,8 @@ if not exist "%LISTS_PATH%ipset-exclude-user.txt" (
     echo 203.0.113.113/32>"%LISTS_PATH%ipset-exclude-user.txt"
 )
 if not exist "%LISTS_PATH%list-general-user.txt" (
-    echo domain.example.abc>"%LISTS_PATH%list-general-user.txt"
+    echo # Never leave this file empty>"%LISTS_PATH%list-general-user.txt"
+    echo domain.example.abc>>"%LISTS_PATH%list-general-user.txt"
 )
 if not exist "%LISTS_PATH%list-exclude-user.txt" (
     echo domain.example.abc>"%LISTS_PATH%list-exclude-user.txt"
@@ -292,11 +294,11 @@ for /f "tokens=*" %%a in ('type "!selectedFile!"') do (
                     echo !arg! | findstr ":" >nul
                     if !errorlevel!==0 (
                         set "arg=\!QUOTE!!arg!\!QUOTE!"
-                    ) else if "!arg:~0,1!"=="@" (
+                    ) else if "!arg:~0,1!=="@" (
                         set "arg=\!QUOTE!@%~dp0!arg:~1!\!QUOTE!"
-                    ) else if "!arg:~0,5!"=="%%BIN%%" (
+                    ) else if "!arg:~0,5!=="%%BIN%%" (
                         set "arg=\!QUOTE!!BIN_PATH!!arg:~5!\!QUOTE!"
-                    ) else if "!arg:~0,7!"=="%%LISTS%%" (
+                    ) else if "!arg:~0,7!=="%%LISTS%%" (
                         set "arg=\!QUOTE!!LISTS_PATH!!arg:~7!\!QUOTE!"
                     ) else (
                         set "arg=\!QUOTE!%~dp0!arg!\!QUOTE!"
@@ -626,7 +628,7 @@ set "found_conflicts="
 for %%s in (!conflicting_services!) do (
     sc query "%%s" >nul 2>&1
     if !errorlevel!==0 (
-        if "!found_conflicts!"=="" (
+        if "!found_conflicts!=="" (
             set "found_conflicts=%%s"
         ) else (
             set "found_conflicts=!found_conflicts! %%s"
@@ -640,10 +642,10 @@ if !found_any_conflict!==1 (
     
     set "CHOICE="
     set /p "CHOICE=Do you want to remove these conflicting services? (Y/N) (default: N) "
-    if "!CHOICE!"=="" set "CHOICE=N"
-    if "!CHOICE!"=="y" set "CHOICE=Y"
+    if "!CHOICE!=="" set "CHOICE=N"
+    if "!CHOICE!=="y" set "CHOICE=Y"
     
-    if /i "!CHOICE!"=="Y" (
+    if /i "!CHOICE!=="Y" (
         for %%s in (!found_conflicts!) do (
             call :PrintYellow "Stopping and removing service: %%s"
             net stop "%%s" >nul 2>&1
@@ -667,10 +669,10 @@ if !found_any_conflict!==1 (
 :: Discord cache clearing
 set "CHOICE="
 set /p "CHOICE=Do you want to clear the Discord cache? (Y/N) (default: Y)  "
-if "!CHOICE!"=="" set "CHOICE=Y"
-if "!CHOICE!"=="y" set "CHOICE=Y"
+if "!CHOICE!=="" set "CHOICE=Y"
+if "!CHOICE!=="y" set "CHOICE=Y"
 
-if /i "!CHOICE!"=="Y" (
+if /i "!CHOICE!=="Y" (
     tasklist /FI "IMAGENAME eq Discord.exe" | findstr /I "Discord.exe" > nul
     if !errorlevel!==0 (
         echo Discord is running, closing...
@@ -819,7 +821,7 @@ for /f %%i in ('type "%listFile%" 2^>nul ^| find /c /v ""') do set "lineCount=%%
 if !lineCount!==0 (
     set "IPsetStatus=any"
 ) else (
-    findstr /R "^203\.0\.113\.113/32$" "%listFile%" >nul
+    findstr /C:"203.0.113.113/32" "%listFile%" >nul
     if !errorlevel!==0 (
         set "IPsetStatus=none"
     ) else (
