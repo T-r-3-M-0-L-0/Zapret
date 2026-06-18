@@ -373,8 +373,16 @@ for /f "tokens=*" %%a in ('type "!selectedFile!"') do (
 
 call :tcp_enable
 
-set ARGS=%args%
-call set "ARGS=%%ARGS:EXCL_MARK=^!%%"
+:: Restore ! from EXCL_MARK using temp file (reliable in DelayedExpansion)
+set "temp_args=%args%"
+setlocal DisableDelayedExpansion
+(
+    echo %temp_args:EXCL_MARK=!%
+) > "%TEMP%\zapret_svc_args.txt"
+endlocal
+< "%TEMP%\zapret_svc_args.txt" set /p "ARGS="
+del "%TEMP%\zapret_svc_args.txt" >nul 2>&1
+
 echo Final args: !ARGS!
 set SRVCNAME=zapret
 
