@@ -226,22 +226,30 @@ goto menu
 
 :: INSTALL =============================
 :service_install
+echo [DEBUG 0] Entered :service_install
+pause
 cls
 chcp 437 > nul
+echo [DEBUG 0a] chcp done
 
 :: Main
 cd /d "%~dp0"
 set "BIN_PATH=%~dp0bin\"
 set "LISTS_PATH=%~dp0lists\"
+echo [DEBUG 0b] cd and paths set
 
 :: Searching for .bat files in current folder, except files that start with "service"
 echo Pick one of the options:
 set "count=0"
+echo [DEBUG 1] Starting PowerShell enumeration...
+pause
 for /f "delims=" %%F in ('powershell -NoProfile -Command "Get-ChildItem -LiteralPath '.' -Filter '*.bat' | Where-Object { $_.Name -notlike 'service*' } | Sort-Object { [Regex]::Replace($_.Name, '(\d+)', { $args[0].Value.PadLeft(8, '0') }) } | ForEach-Object { $_.Name }"') do (
     set /a count+=1
     echo !count!. %%F
     set "file!count!=%%F"
 )
+echo [DEBUG 2] PowerShell done. Found !count! files.
+pause
 
 :: Check if any strategy files found
 if !count! equ 0 (
@@ -249,10 +257,15 @@ if !count! equ 0 (
     pause
     goto menu
 )
+echo [DEBUG 3] count check passed. Asking for input...
+pause
 
 :: Choosing file
 set "stratChoice="
 set /p "stratChoice=Input file index (number): "
+echo [DEBUG 4] User entered: !stratChoice!
+pause
+
 if not defined stratChoice (
     echo The choice is empty, exiting...
     pause
@@ -266,6 +279,10 @@ if errorlevel 1 (
     goto menu
 )
 
+echo [DEBUG 5] Numeric validation passed
+echo [DEBUG 5a] stratChoice=!stratChoice! count=!count!
+pause
+
 if !stratChoice! lss 1 (
     echo Choice must be 1 or greater.
     pause
@@ -277,12 +294,20 @@ if !stratChoice! gtr !count! (
     goto menu
 )
 
+echo [DEBUG 6] Range validation passed
+echo [DEBUG 6a] file!stratChoice! = !file%stratChoice%!
+pause
+
 set "selectedFile=!file%stratChoice%!"
 if not defined selectedFile (
     echo Invalid choice, exiting...
     pause
     goto menu
 )
+
+echo [DEBUG 7] Selected file: !selectedFile!
+echo [DEBUG 8] Starting argument parsing...
+pause
 
 :: Args that should be followed by value
 set "args_with_value=sni host altorder"
@@ -367,6 +392,10 @@ for /f "tokens=*" %%a in ('type "!selectedFile!"') do (
         )
     )
 )
+
+echo [DEBUG 9] Argument parsing done
+echo [DEBUG 9a] args=!args!
+pause
 
 :: Creating service with parsed args
 call :tcp_enable
