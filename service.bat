@@ -207,11 +207,14 @@ if !errorlevel!==0 (
 
 sc query "WinDivert" >nul 2>&1
 if !errorlevel!==0 (
-    net stop "WinDivert"
-
+    echo Stopping WinDivert...
+    net stop "WinDivert" >nul 2>&1
+    timeout /t 3 >nul
     sc query "WinDivert" >nul 2>&1
     if !errorlevel!==0 (
-        sc delete "WinDivert"
+        echo Forcing WinDivert removal...
+        sc delete "WinDivert" >nul 2>&1
+        timeout /t 2 >nul
     )
 )
 net stop "WinDivert14" >nul 2>&1
@@ -240,16 +243,41 @@ for /f "delims=" %%F in ('powershell -NoProfile -Command "Get-ChildItem -Literal
     set "file!count!=%%F"
 )
 
+:: Check if any strategy files found
+if !count! equ 0 (
+    echo No strategy files found in current folder.
+    pause
+    goto menu
+)
+
 :: Choosing file
-set "choice="
-set /p "choice=Input file index (number): "
-if "!choice!"=="" (
+set "stratChoice="
+set /p "stratChoice=Input file index (number): "
+if not defined stratChoice (
     echo The choice is empty, exiting...
     pause
     goto menu
 )
 
-set "selectedFile=!file%choice%!"
+echo !stratChoice!| findstr /R "^[0-9][0-9]*$" >nul
+if errorlevel 1 (
+    echo Invalid input. Please enter a number.
+    pause
+    goto menu
+)
+
+if !stratChoice! lss 1 (
+    echo Choice must be 1 or greater.
+    pause
+    goto menu
+)
+if !stratChoice! gtr !count! (
+    echo Choice must be !count! or less.
+    pause
+    goto menu
+)
+
+set "selectedFile=!file%stratChoice%!"
 if not defined selectedFile (
     echo Invalid choice, exiting...
     pause
@@ -353,7 +381,7 @@ sc delete %SRVCNAME% >nul 2>&1
 sc create %SRVCNAME% binPath= "\"%BIN_PATH%winws.exe\" !ARGS!" DisplayName= "zapret" start= auto
 sc description %SRVCNAME% "Zapret DPI bypass software"
 sc start %SRVCNAME%
-for %%F in ("!file%choice%!") do (
+for %%F in ("!file%stratChoice%!") do (
     set "filename=%%~nF"
 )
 reg add "HKLM\System\CurrentControlSet\Services\zapret" /v zapret-discord-youtube /t REG_SZ /d "!filename!" /f
