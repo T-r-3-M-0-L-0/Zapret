@@ -312,3 +312,10 @@ gameguard.ac
 nprotect.net
 xigncode.com
 wellbia.com
+
+# Aliens vs Predator 2010 (community servers)
+avpunknown.com
+avp2010.avpunknown.com
+avpunknown.net
+avpunknown.org
+avpuniverse.com
