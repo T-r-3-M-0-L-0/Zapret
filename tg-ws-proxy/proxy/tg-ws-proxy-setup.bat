@@ -28,7 +28,7 @@ if %errorlevel% neq 0 (
     start /wait "" "!PYTHON_INSTALLER!" /quiet InstallAllUsers=1 PrependPath=1 Include_test=0
     if exist "!PYTHON_INSTALLER!" del "!PYTHON_INSTALLER!"
 
-    :: Обновляем PATH
+    :: Update PATH
     for /f "tokens=2*" %%i in ('reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v Path 2^>nul ^| find "Path"') do set "SysPath=%%j"
     if defined SysPath set "PATH=%SysPath%;%PATH%"
 
@@ -43,26 +43,23 @@ if %errorlevel% neq 0 (
     echo [OK] Python is already installed.
 )
 
-:: 2. Modules
+:: 2. Modules (cryptography recommended, but optional - fallback to OpenSSL ctypes)
 echo [INFO] Checking required modules...
-set "NEED_INSTALL="
-python -c "import cryptography" 2>nul || set "NEED_INSTALL=!NEED_INSTALL! cryptography"
-python -c "import websockets" 2>nul || set "NEED_INSTALL=!NEED_INSTALL! websockets"
-
-if defined NEED_INSTALL (
-    echo [INFO] Installing modules:!NEED_INSTALL!
+python -c "import cryptography" 2>nul
+if %errorlevel% neq 0 (
+    echo [INFO] Installing cryptography for better performance...
     python -m pip install --upgrade pip --quiet --disable-pip-version-check
-    python -m pip install!NEED_INSTALL! --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org --quiet --disable-pip-version-check
+    python -m pip install cryptography --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org --quiet --disable-pip-version-check
     if %errorlevel% neq 0 (
-        echo [ERROR] Module installation failed. Try running manually:
-        echo python -m pip install!NEED_INSTALL! --trusted-host pypi.org --trusted-host files.pythonhosted.org
-        pause
-        exit /b 1
+        echo [WARN] cryptography installation failed. Will use OpenSSL fallback (slower but works).
+    ) else (
+        echo [OK] cryptography installed.
     )
-    echo [OK] Modules installed.
 ) else (
-    echo [OK] Required modules already installed.
+    echo [OK] cryptography is already installed.
 )
+
+:: Note: websockets module is NOT needed - tg-ws-proxy uses built-in RawWebSocket
 
 :: 3. Launch
 echo [INFO] Starting tg-ws-proxy in background...
@@ -70,7 +67,7 @@ start "" /min pythonw "%~dp0tg_ws_proxy.py" --port 1080 --host 127.0.0.1 --secre
 
 echo [OK] Proxy launched. This window will close in 5 seconds.
 
-:: Авто-добавление прокси в Telegram Desktop (с задержкой на поднятие прокси)
+:: Auto-add proxy to Telegram Desktop (wait for proxy to start)
 timeout /t 7 >nul
 start tg://proxy?server=127.0.0.1^&port=1080^&secret=c36be8ffc5f480784b4c5fc31f1eefe8
 
