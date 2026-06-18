@@ -55,7 +55,9 @@ if "%1"=="admin" (
 setlocal EnableDelayedExpansion
 title ZAPRET SERVICE MANAGER v!LOCAL_VERSION!
 :menu
+
 cls
+
 call :ipset_switch_status
 call :game_switch_status
 call :check_updates_switch_status
@@ -207,14 +209,11 @@ if !errorlevel!==0 (
 
 sc query "WinDivert" >nul 2>&1
 if !errorlevel!==0 (
-    echo Stopping WinDivert...
-    net stop "WinDivert" >nul 2>&1
-    timeout /t 3 >nul
+    net stop "WinDivert"
+
     sc query "WinDivert" >nul 2>&1
     if !errorlevel!==0 (
-        echo Forcing WinDivert removal...
-        sc delete "WinDivert" >nul 2>&1
-        timeout /t 2 >nul
+        sc delete "WinDivert"
     )
 )
 net stop "WinDivert14" >nul 2>&1
@@ -229,11 +228,12 @@ goto menu
 cls
 chcp 437 > nul
 
+:: Main
 cd /d "%~dp0"
 set "BIN_PATH=%~dp0bin\"
-set "BIN=%BIN_PATH%"
 set "LISTS_PATH=%~dp0lists\"
 
+:: Searching for .bat files in current folder, except files that start with "service"
 echo Pick one of the options:
 set "count=0"
 for /f "delims=" %%F in ('powershell -NoProfile -Command "Get-ChildItem -LiteralPath '.' -Filter '*.bat' | Where-Object { $_.Name -notlike 'service*' } | Sort-Object { [Regex]::Replace($_.Name, '(\d+)', { $args[0].Value.PadLeft(8, '0') }) } | ForEach-Object { $_.Name }"') do (
@@ -242,55 +242,26 @@ for /f "delims=" %%F in ('powershell -NoProfile -Command "Get-ChildItem -Literal
     set "file!count!=%%F"
 )
 
-if !count! equ 0 (
-    echo No strategy files found in current folder.
-    pause
-    goto menu
-)
-
-set "stratChoice="
-set /p "stratChoice=Input file index (number): "
-
-if not defined stratChoice (
+:: Choosing file
+set "choice="
+set /p "choice=Input file index (number): "
+if "!choice!"=="" (
     echo The choice is empty, exiting...
     pause
     goto menu
 )
 
-echo !stratChoice!| findstr /R "^[0-9][0-9]*$" >nul
-if errorlevel 1 (
-    echo Invalid input. Please enter a number.
-    pause
-    goto menu
-)
-
-if !stratChoice! lss 1 (
-    echo Choice must be 1 or greater.
-    pause
-    goto menu
-)
-if !stratChoice! gtr !count! (
-    echo Choice must be !count! or less.
-    pause
-    goto menu
-)
-
-set "selectedFile=!file%stratChoice%!"
+set "selectedFile=!file%choice%!"
 if not defined selectedFile (
     echo Invalid choice, exiting...
     pause
     goto menu
 )
 
-if not exist "!selectedFile!" (
-    echo Strategy file not found: !selectedFile!
-    pause
-    goto menu
-)
-
-echo Parsing strategy file...
-
+:: Args that should be followed by value
 set "args_with_value=sni host altorder"
+
+:: Parsing args (mergeargs: 2=start param|3=arg with value|1=params args|0=default)
 set "args="
 set "capture=0"
 set "mergeargs=0"
@@ -371,18 +342,11 @@ for /f "tokens=*" %%a in ('type "!selectedFile!"') do (
     )
 )
 
+:: Creating service with parsed args
 call :tcp_enable
 
-:: Restore ! from EXCL_MARK using temp file (reliable in DelayedExpansion)
-set "temp_args=%args%"
-setlocal DisableDelayedExpansion
-(
-    echo %temp_args:EXCL_MARK=!%
-) > "%TEMP%\zapret_svc_args.txt"
-endlocal
-< "%TEMP%\zapret_svc_args.txt" set /p "ARGS="
-del "%TEMP%\zapret_svc_args.txt" >nul 2>&1
-
+set ARGS=%args%
+call set "ARGS=%%ARGS:EXCL_MARK=^!%%"
 echo Final args: !ARGS!
 set SRVCNAME=zapret
 
@@ -391,7 +355,7 @@ sc delete %SRVCNAME% >nul 2>&1
 sc create %SRVCNAME% binPath= "\"%BIN_PATH%winws.exe\" !ARGS!" DisplayName= "zapret" start= auto
 sc description %SRVCNAME% "Zapret DPI bypass software"
 sc start %SRVCNAME%
-for %%F in ("!file%stratChoice%!") do (
+for %%F in ("!file%choice%!") do (
     set "filename=%%~nF"
 )
 reg add "HKLM\System\CurrentControlSet\Services\zapret" /v zapret-discord-youtube /t REG_SZ /d "!filename!" /f
@@ -405,12 +369,15 @@ goto menu
 chcp 437 > nul
 cls
 
+:: Set current version and URLs
 set "GITHUB_VERSION_URL=https://raw.githubusercontent.com/Flowseal/zapret-discord-youtube/main/.service/version.txt"
 set "GITHUB_RELEASE_URL=https://github.com/Flowseal/zapret-discord-youtube/releases/tag/"
 set "GITHUB_DOWNLOAD_URL=https://github.com/Flowseal/zapret-discord-youtube/releases/latest"
 
+:: Get the latest version from GitHub
 for /f "delims=" %%A in ('powershell -NoProfile -Command "(Invoke-WebRequest -Uri \"%GITHUB_VERSION_URL%\" -Headers @{\"Cache-Control\"=\"no-cache\"} -UseBasicParsing -TimeoutSec 5).Content.Trim()" 2^>nul') do set "GITHUB_VERSION=%%A"
 
+:: Error handling
 if not defined GITHUB_VERSION (
     echo Warning: failed to fetch the latest version. This warning does not affect the operation of zapret
     timeout /T 9
@@ -418,6 +385,7 @@ if not defined GITHUB_VERSION (
     goto menu
 )
 
+:: Version comparison
 if "%LOCAL_VERSION%"=="%GITHUB_VERSION%" (
     echo Latest version installed: %LOCAL_VERSION%
     
@@ -662,7 +630,7 @@ set "found_conflicts="
 for %%s in (!conflicting_services!) do (
     sc query "%%s" >nul 2>&1
     if !errorlevel!==0 (
-        if "!found_conflicts!=="" (
+        if "!found_conflicts!"=="" (
             set "found_conflicts=%%s"
         ) else (
             set "found_conflicts=!found_conflicts! %%s"
@@ -676,10 +644,10 @@ if !found_any_conflict!==1 (
     
     set "CHOICE="
     set /p "CHOICE=Do you want to remove these conflicting services? (Y/N) (default: N) "
-    if "!CHOICE!=="" set "CHOICE=N"
-    if "!CHOICE!=='"y"' set "CHOICE=Y"
+    if "!CHOICE!"=="" set "CHOICE=N"
+    if "!CHOICE!"=="y" set "CHOICE=Y"
     
-    if /i "!CHOICE!=='"Y"' (
+    if /i "!CHOICE!"=="Y" (
         for %%s in (!found_conflicts!) do (
             call :PrintYellow "Stopping and removing service: %%s"
             net stop "%%s" >nul 2>&1
@@ -703,10 +671,10 @@ if !found_any_conflict!==1 (
 :: Discord cache clearing
 set "CHOICE="
 set /p "CHOICE=Do you want to clear the Discord cache? (Y/N) (default: Y)  "
-if "!CHOICE!=="" set "CHOICE=Y"
-if "!CHOICE!=='"y"' set "CHOICE=Y"
+if "!CHOICE!"=="" set "CHOICE=Y"
+if "!CHOICE!"=="y" set "CHOICE=Y"
 
-if /i "!CHOICE!=='"Y"' (
+if /i "!CHOICE!"=="Y" (
     tasklist /FI "IMAGENAME eq Discord.exe" | findstr /I "Discord.exe" > nul
     if !errorlevel!==0 (
         echo Discord is running, closing...
@@ -935,7 +903,7 @@ if exist "%SystemRoot%\System32\curl.exe" (
         "$dir = Split-Path -Parent $out;" ^
         "if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir | Out-Null };" ^
         "$res = Invoke-WebRequest -Uri $url -TimeoutSec 10 -UseBasicParsing;" ^
-        "$res.Content | Out-File -FilePath $out -Encoding UTF8 } else { exit 1 }"
+        "if ($res.StatusCode -eq 200) { $res.Content | Out-File -FilePath $out -Encoding UTF8 } else { exit 1 }"
 )
 
 echo Finished
@@ -963,7 +931,7 @@ if exist "%SystemRoot%\System32\curl.exe" (
         "$url = '%hostsUrl%';" ^
         "$out = '%tempFile%';" ^
         "$res = Invoke-WebRequest -Uri $url -TimeoutSec 10 -UseBasicParsing;" ^
-        "$res.Content | Out-File -FilePath $out -Encoding UTF8 } else { exit 1 }"
+        "if ($res.StatusCode -eq 200) { $res.Content | Out-File -FilePath $out -Encoding UTF8 } else { exit 1 }"
 )
 
 if not exist "%tempFile%" (
