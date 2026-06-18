@@ -292,6 +292,23 @@
 95.182.120.241 videos.openai.com
 45.155.204.190 www.openai.com
 95.182.120.241 www.openai.com
+# ChatGPT new domains
+45.155.204.190 chatgpt.com
+95.182.120.241 chatgpt.com
+45.155.204.190 www.chatgpt.com
+95.182.120.241 www.chatgpt.com
+45.155.204.190 ws.chatgpt.com
+95.182.120.241 ws.chatgpt.com
+45.155.204.190 oaiusercontent.com
+95.182.120.241 oaiusercontent.com
+45.155.204.190 files.oaiusercontent.com
+95.182.120.241 files.oaiusercontent.com
+45.155.204.190 oaistatsig.com
+95.182.120.241 oaistatsig.com
+45.155.204.190 cdn.openaimerge.com
+95.182.120.241 cdn.openaimerge.com
+45.155.204.190 challenges.cloudflare.com
+95.182.120.241 challenges.cloudflare.com
 
 # Gemini_NotebookLM_google
 45.155.204.190 gemini.google.com
@@ -327,3 +344,51 @@
 95.182.120.241 chat.x.ai
 80.74.29.235 api.x.ai
 95.182.120.241 api.x.ai
+
+# Anthropic / Claude
+45.155.204.190 anthropic.com
+95.182.120.241 anthropic.com
+45.155.204.190 www.anthropic.com
+95.182.120.241 www.anthropic.com
+45.155.204.190 claude.ai
+95.182.120.241 claude.ai
+45.155.204.190 www.claude.ai
+95.182.120.241 www.claude.ai
+45.155.204.190 api.anthropic.com
+95.182.120.241 api.anthropic.com
+45.155.204.190 platform.claude.com
+95.182.120.241 platform.claude.com
+45.155.204.190 console.anthropic.com
+95.182.120.241 console.anthropic.com
+45.155.204.190 downloads.claude.ai
+95.182.120.241 downloads.claude.ai
+45.155.204.190 bridge.claudeusercontent.com
+95.182.120.241 bridge.claudeusercontent.com
+
+# Perplexity AI
+45.155.204.190 perplexity.ai
+95.182.120.241 perplexity.ai
+45.155.204.190 www.perplexity.ai
+95.182.120.241 www.perplexity.ai
+
+# Character.AI
+45.155.204.190 character.ai
+95.182.120.241 character.ai
+
+# Midjourney
+45.155.204.190 midjourney.com
+95.182.120.241 midjourney.com
+45.155.204.190 www.midjourney.com
+95.182.120.241 www.midjourney.com
+
+# ElevenLabs
+45.155.204.190 elevenlabs.io
+95.182.120.241 elevenlabs.io
+
+# Pi AI
+45.155.204.190 pi.ai
+95.182.120.241 pi.ai
+
+# Chat.com (OpenAI)
+45.155.204.190 chat.com
+95.182.120.241 chat.com
