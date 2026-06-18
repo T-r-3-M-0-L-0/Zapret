@@ -78,7 +78,8 @@ class RawWebSocket:
         self._closed = False
 
     @staticmethod
-    async def connect(host: str, domain: str, timeout: float = 10.0) -> 'RawWebSocket':
+    async def connect(host: str, domain: str, timeout: float = 10.0,
+                      path: str = '/apiws') -> 'RawWebSocket':
         reader, writer = await asyncio.wait_for(
             asyncio.open_connection(host, 443, ssl=_ssl_ctx,
                                     server_hostname=domain),
@@ -89,7 +90,7 @@ class RawWebSocket:
         ws_key = base64.b64encode(os.urandom(16)).decode()
 
         req = (
-            f'GET /apiws HTTP/1.1\r\n'
+            f'GET {path} HTTP/1.1\r\n'
             f'Host: {domain}\r\n'
             f'Upgrade: websocket\r\n'
             f'Connection: Upgrade\r\n'
@@ -153,6 +154,13 @@ class RawWebSocket:
                 self._build_frame(self.OP_BINARY, part, mask=True))
         await self.writer.drain()
 
+    async def send_ping(self, payload: bytes = b''):
+        if self._closed:
+            raise ConnectionError("WebSocket closed")
+        frame = self._build_frame(self.OP_PING, payload, mask=True)
+        self.writer.write(frame)
+        await self.writer.drain()
+
     async def recv(self) -> Optional[bytes]:
         while not self._closed:
             opcode, payload = await self._read_frame()
@@ -197,7 +205,7 @@ class RawWebSocket:
             pass
         try:
             self.writer.close()
-            await self.writer.wait_closed()
+            await writer.wait_closed()
         except Exception:
             pass
 
