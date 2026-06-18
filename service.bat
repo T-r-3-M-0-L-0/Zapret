@@ -388,14 +388,36 @@ set SRVCNAME=zapret
 
 net stop %SRVCNAME% >nul 2>&1
 sc delete %SRVCNAME% >nul 2>&1
-sc create %SRVCNAME% binPath= "\"%BIN_PATH%winws.exe\" !ARGS!" DisplayName= "zapret" start= auto
+
+:: Build full binPath string with proper quote escaping for sc create
+:: sc create binPath requires all inner quotes to be escaped with backslash
+set "SRVCBIN=\"%BIN_PATH%winws.exe\" !ARGS!"
+
+:: Step 1: Temporarily hide already-escaped quotes (\")
+set "SRVCBIN=!SRVCBIN:\"=##ESC##!"
+:: Step 2: Escape remaining raw quotes
+set "SRVCBIN=!SRVCBIN:"=\"!"
+:: Step 3: Restore already-escaped quotes
+set "SRVCBIN=!SRVCBIN:##ESC##=\"!"
+
+echo Creating service with parsed args...
+sc create %SRVCNAME% binPath= "!SRVCBIN!" DisplayName= "zapret" start= auto
 sc description %SRVCNAME% "Zapret DPI bypass software"
 sc start %SRVCNAME%
+
+if !errorlevel! neq 0 (
+    echo [ERROR] Failed to start service. Check the error message above.
+    echo You may need to run Diagnostics ^(option 10^) to resolve conflicts.
+    pause
+    goto menu
+)
+
 for %%F in ("!file%stratChoice%!") do (
     set "filename=%%~nF"
 )
 reg add "HKLM\System\CurrentControlSet\Services\zapret" /v zapret-discord-youtube /t REG_SZ /d "!filename!" /f
 
+echo Service installed and started successfully.
 pause
 goto menu
 
@@ -935,7 +957,7 @@ if exist "%SystemRoot%\System32\curl.exe" (
         "$dir = Split-Path -Parent $out;" ^
         "if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir | Out-Null };" ^
         "$res = Invoke-WebRequest -Uri $url -TimeoutSec 10 -UseBasicParsing;" ^
-        "if ($res.StatusCode -eq 200) { $res.Content | Out-File -FilePath $out -Encoding UTF8 } else { exit 1 }"
+        "$res.Content | Out-File -FilePath $out -Encoding UTF8 } else { exit 1 }"
 )
 
 echo Finished
