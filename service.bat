@@ -229,13 +229,10 @@ goto menu
 cls
 chcp 437 > nul
 
-:: Main
 cd /d "%~dp0"
 set "BIN_PATH=%~dp0bin\"
-set "BIN=%BIN_PATH%"
 set "LISTS_PATH=%~dp0lists\"
 
-:: Searching for .bat files in current folder, except files that start with "service"
 echo Pick one of the options:
 set "count=0"
 for /f "delims=" %%F in ('powershell -NoProfile -Command "Get-ChildItem -LiteralPath '.' -Filter '*.bat' | Where-Object { $_.Name -notlike 'service*' } | Sort-Object { [Regex]::Replace($_.Name, '(\d+)', { $args[0].Value.PadLeft(8, '0') }) } | ForEach-Object { $_.Name }"') do (
@@ -244,14 +241,12 @@ for /f "delims=" %%F in ('powershell -NoProfile -Command "Get-ChildItem -Literal
     set "file!count!=%%F"
 )
 
-:: Check if any strategy files found
 if !count! equ 0 (
     echo No strategy files found in current folder.
     pause
     goto menu
 )
 
-:: Choosing file
 set "stratChoice="
 set /p "stratChoice=Input file index (number): "
 
@@ -286,27 +281,34 @@ if not defined selectedFile (
     goto menu
 )
 
-:: Args that should be followed by value
-set "args_with_value=sni host altorder"
+if not exist "!selectedFile!" (
+    echo Strategy file not found: !selectedFile!
+    pause
+    goto menu
+)
 
-:: Parsing args (mergeargs: 2=start param|3=arg with value|1=params args|0=default)
+echo Parsing strategy file...
+
+set "args_with_value=sni host altorder"
 set "args="
 set "capture=0"
 set "mergeargs=0"
-set QUOTE="
+set "QMARK=^""
 
-for /f "tokens=*" %%a in ('type "!selectedFile!"') do (
+for /f "tokens=* eol=" %%a in ('type "!selectedFile!" 2^>nul') do (
     set "line=%%a"
     call set "line=%%line:^!=EXCL_MARK%%"
 
-    echo !line! | findstr /i "%BIN%winws.exe" >nul
+    echo !line! | findstr /i /c:"winws.exe" >nul 2>&1
     if not errorlevel 1 (
         set "capture=1"
     )
 
     if !capture!==1 (
         if not defined args (
-            set "line=!line:*%BIN%winws.exe"=!"
+            set "line=!line:*winws.exe=!"
+            if "!line:~0,1!" == "^"" set "line=!line:~1!"
+            if "!line:~0,1!" == " " set "line=!line:~1!"
         )
 
         set "temp_args="
@@ -318,20 +320,20 @@ for /f "tokens=*" %%a in ('type "!selectedFile!"') do (
                     set "mergeargs=0"
                 )
 
-                if "!arg:~0,1!" EQU "!QUOTE!" (
+                if "!arg:~0,1!" EQU "!QMARK!" (
                     set "arg=!arg:~1,-1!"
 
-                    echo !arg! | findstr ":" >nul
+                    echo !arg! | findstr ":" >nul 2>&1
                     if !errorlevel!==0 (
-                        set "arg=\!QUOTE!!arg!\!QUOTE!"
-                    ) else if "!arg:~0,1!==="@" (
-                        set "arg=\!QUOTE!@%~dp0!arg:~1!\!QUOTE!"
-                    ) else if "!arg:~0,5!==="%%BIN%%" (
-                        set "arg=\!QUOTE!!BIN_PATH!!arg:~5!\!QUOTE!"
-                    ) else if "!arg:~0,7!==="%%LISTS%%" (
-                        set "arg=\!QUOTE!!LISTS_PATH!!arg:~7!\!QUOTE!"
+                        set "arg=\!QMARK!!arg!\!QMARK!"
+                    ) else if "!arg:~0,1!"=="@" (
+                        set "arg=\!QMARK!@%~dp0!arg:~1!\!QMARK!"
+                    ) else if "!arg:~0,5!"=="%%BIN%%" (
+                        set "arg=\!QMARK!!BIN_PATH!!arg:~5!\!QMARK!"
+                    ) else if "!arg:~0,7!"=="%%LISTS%%" (
+                        set "arg=\!QMARK!!LISTS_PATH!!arg:~7!\!QMARK!"
                     ) else (
-                        set "arg=\!QUOTE!%~dp0!arg!\!QUOTE!"
+                        set "arg=\!QMARK!%~dp0!arg!\!QMARK!"
                     )
                 ) else if "!arg:~0,12!" EQU "%%GameFilter%%" (
                     set "arg=%GameFilter%"
@@ -370,7 +372,13 @@ for /f "tokens=*" %%a in ('type "!selectedFile!"') do (
     )
 )
 
-:: Creating service with parsed args
+if not defined args (
+    echo ERROR: Could not parse arguments from strategy file.
+    echo Make sure the .bat file contains a line with winws.exe.
+    pause
+    goto menu
+)
+
 call :tcp_enable
 
 set ARGS=%args%
@@ -397,15 +405,12 @@ goto menu
 chcp 437 > nul
 cls
 
-:: Set current version and URLs
 set "GITHUB_VERSION_URL=https://raw.githubusercontent.com/Flowseal/zapret-discord-youtube/main/.service/version.txt"
 set "GITHUB_RELEASE_URL=https://github.com/Flowseal/zapret-discord-youtube/releases/tag/"
 set "GITHUB_DOWNLOAD_URL=https://github.com/Flowseal/zapret-discord-youtube/releases/latest"
 
-:: Get the latest version from GitHub
 for /f "delims=" %%A in ('powershell -NoProfile -Command "(Invoke-WebRequest -Uri \"%GITHUB_VERSION_URL%\" -Headers @{\"Cache-Control\"=\"no-cache\"} -UseBasicParsing -TimeoutSec 5).Content.Trim()" 2^>nul') do set "GITHUB_VERSION=%%A"
 
-:: Error handling
 if not defined GITHUB_VERSION (
     echo Warning: failed to fetch the latest version. This warning does not affect the operation of zapret
     timeout /T 9
@@ -413,7 +418,6 @@ if not defined GITHUB_VERSION (
     goto menu
 )
 
-:: Version comparison
 if "%LOCAL_VERSION%"=="%GITHUB_VERSION%" (
     echo Latest version installed: %LOCAL_VERSION%
     
