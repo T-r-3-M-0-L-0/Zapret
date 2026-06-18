@@ -45,18 +45,21 @@ if %errorlevel% neq 0 (
 
 :: 2. Modules (cryptography recommended, but optional - fallback to OpenSSL ctypes)
 echo [INFO] Checking required modules...
-python -c "import cryptography" 2>nul
-if %errorlevel% neq 0 (
-    echo [INFO] Installing cryptography for better performance...
-    python -m pip install --upgrade pip --quiet --disable-pip-version-check
-    python -m pip install cryptography --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org --quiet --disable-pip-version-check
-    if %errorlevel% neq 0 (
-        echo [WARN] cryptography installation failed. Will use OpenSSL fallback (slower but works).
-    ) else (
-        echo [OK] cryptography installed.
-    )
-) else (
+
+set "HAS_CRYPTO=1"
+python -c "import cryptography" >nul 2>nul || set "HAS_CRYPTO=0"
+
+if "!HAS_CRYPTO!"=="1" (
     echo [OK] cryptography is already installed.
+) else (
+    echo [INFO] Installing cryptography for better performance...
+    python -m pip install --upgrade pip --quiet --disable-pip-version-check >nul 2>nul
+    python -m pip install cryptography --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org --quiet --disable-pip-version-check >nul 2>nul
+    if !errorlevel! equ 0 (
+        echo [OK] cryptography installed.
+    ) else (
+        echo [WARN] cryptography installation failed. Will use OpenSSL fallback (slower but works).
+    )
 )
 
 :: Note: websockets module is NOT needed - tg-ws-proxy uses built-in RawWebSocket
