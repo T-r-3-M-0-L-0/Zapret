@@ -90,11 +90,11 @@ if not exist "%~dp0tg_ws_proxy.py" (
     exit /b 1
 )
 
-:: Launch with error log
+:: Launch with error log (no console window)
 set "START_LOG=%TEMP%\tg-ws-proxy-start.log"
 if exist "%START_LOG%" del "%START_LOG%"
 
-start "" /min cmd /c "%PYTHON_EXE% "%~dp0tg_ws_proxy.py" --port 1080 --host 127.0.0.1 --secret c36be8ffc5f480784b4c5fc31f1eefe8 2>"%START_LOG%""
+start "" /B /min %PYTHON_EXE% "%~dp0tg_ws_proxy.py" --port 1080 --host 127.0.0.1 --secret c36be8ffc5f480784b4c5fc31f1eefe8 2>"%START_LOG%"
 
 :: Wait and verify process started
 timeout /t 2 >nul
