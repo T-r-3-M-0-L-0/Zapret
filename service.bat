@@ -231,6 +231,7 @@ chcp 437 > nul
 
 cd /d "%~dp0"
 set "BIN_PATH=%~dp0bin\"
+set "BIN=%BIN_PATH%"
 set "LISTS_PATH=%~dp0lists\"
 
 echo Pick one of the options:
@@ -293,22 +294,20 @@ set "args_with_value=sni host altorder"
 set "args="
 set "capture=0"
 set "mergeargs=0"
-set "QMARK=^""
+set QUOTE="
 
-for /f "tokens=* eol=" %%a in ('type "!selectedFile!" 2^>nul') do (
+for /f "tokens=*" %%a in ('type "!selectedFile!"') do (
     set "line=%%a"
     call set "line=%%line:^!=EXCL_MARK%%"
 
-    echo !line! | findstr /i /c:"winws.exe" >nul 2>&1
+    echo !line! | findstr /i "%BIN%winws.exe" >nul
     if not errorlevel 1 (
         set "capture=1"
     )
 
     if !capture!==1 (
         if not defined args (
-            set "line=!line:*winws.exe=!"
-            if "!line:~0,1!" == "^"" set "line=!line:~1!"
-            if "!line:~0,1!" == " " set "line=!line:~1!"
+            set "line=!line:*%BIN%winws.exe"=!"
         )
 
         set "temp_args="
@@ -320,20 +319,20 @@ for /f "tokens=* eol=" %%a in ('type "!selectedFile!" 2^>nul') do (
                     set "mergeargs=0"
                 )
 
-                if "!arg:~0,1!" EQU "!QMARK!" (
+                if "!arg:~0,1!" EQU "!QUOTE!" (
                     set "arg=!arg:~1,-1!"
 
-                    echo !arg! | findstr ":" >nul 2>&1
+                    echo !arg! | findstr ":" >nul
                     if !errorlevel!==0 (
-                        set "arg=\!QMARK!!arg!\!QMARK!"
+                        set "arg=\!QUOTE!!arg!\!QUOTE!"
                     ) else if "!arg:~0,1!"=="@" (
-                        set "arg=\!QMARK!@%~dp0!arg:~1!\!QMARK!"
+                        set "arg=\!QUOTE!@%~dp0!arg:~1!\!QUOTE!"
                     ) else if "!arg:~0,5!"=="%%BIN%%" (
-                        set "arg=\!QMARK!!BIN_PATH!!arg:~5!\!QMARK!"
+                        set "arg=\!QUOTE!!BIN_PATH!!arg:~5!\!QUOTE!"
                     ) else if "!arg:~0,7!"=="%%LISTS%%" (
-                        set "arg=\!QMARK!!LISTS_PATH!!arg:~7!\!QMARK!"
+                        set "arg=\!QUOTE!!LISTS_PATH!!arg:~7!\!QUOTE!"
                     ) else (
-                        set "arg=\!QMARK!%~dp0!arg!\!QMARK!"
+                        set "arg=\!QUOTE!%~dp0!arg!\!QUOTE!"
                     )
                 ) else if "!arg:~0,12!" EQU "%%GameFilter%%" (
                     set "arg=%GameFilter%"
@@ -372,60 +371,23 @@ for /f "tokens=* eol=" %%a in ('type "!selectedFile!" 2^>nul') do (
     )
 )
 
-if not defined args (
-    echo ERROR: Could not parse arguments from strategy file.
-    echo Make sure the .bat file contains a line with winws.exe.
-    pause
-    goto menu
-)
-
 call :tcp_enable
 
 set ARGS=%args%
 call set "ARGS=%%ARGS:EXCL_MARK=^!%%"
-echo Parsed args: !ARGS!
+echo Final args: !ARGS!
 set SRVCNAME=zapret
 
 net stop %SRVCNAME% >nul 2>&1
 sc delete %SRVCNAME% >nul 2>&1
-
-:: Use launcher batch file for reliable argument passing
-echo Creating launcher script...
-set "LAUNCHER=%~dp0zapret_service_launcher.bat"
-(
-    echo @echo off
-    echo cd /d "%~dp0"
-    echo start "zapret" /min "!BIN_PATH!winws.exe" !ARGS!
-) > "!LAUNCHER!"
-
-echo Creating service with launcher...
-sc create %SRVCNAME% binPath= "cmd.exe /c "!LAUNCHER!"" DisplayName= "zapret" start= auto
-
-echo Configuring service...
+sc create %SRVCNAME% binPath= "\"%BIN_PATH%winws.exe\" !ARGS!" DisplayName= "zapret" start= auto
 sc description %SRVCNAME% "Zapret DPI bypass software"
-
-echo Starting service...
 sc start %SRVCNAME%
-
-if !errorlevel! neq 0 (
-    echo.
-    echo [ERROR] Service failed to start ^(error !errorlevel!^).
-    echo The launcher script was saved to: !LAUNCHER!
-    echo.
-    echo You can try running it manually to see the error:
-    echo   "!LAUNCHER!"
-    echo.
-    pause
-    goto menu
-)
-
 for %%F in ("!file%stratChoice%!") do (
     set "filename=%%~nF"
 )
 reg add "HKLM\System\CurrentControlSet\Services\zapret" /v zapret-discord-youtube /t REG_SZ /d "!filename!" /f
 
-echo.
-echo Service installed and started successfully.
 pause
 goto menu
 
