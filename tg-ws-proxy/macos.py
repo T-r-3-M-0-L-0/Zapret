@@ -24,7 +24,7 @@ try:
 except ImportError:
     pyperclip = None
 
-from proxy import __version__, get_link_host, parse_dc_ip_list, proxy_config
+from proxy import __version__, get_link_host, parse_dc_ip_list, proxy_config, coerce_domain_list
 from proxy.tg_ws_proxy import _run
 
 from utils.tray_common import (
@@ -32,6 +32,7 @@ from utils.tray_common import (
     LOG_FILE, acquire_lock, apply_proxy_config, ensure_dirs, load_config,
     log, release_lock, save_config, setup_logging, stop_proxy, tg_proxy_url,
 )
+from utils.diagnostics import diagnose_listen_error
 
 MENUBAR_ICON_PATH = APP_DIR / "menubar_icon.png"
 
@@ -40,6 +41,8 @@ _async_stop: Optional[object] = None
 _app: Optional[object] = None
 _config: dict = {}
 _exiting: bool = False
+
+_CFWORKER_HELP_URL = "https://github.com/Flowseal/tg-ws-proxy/blob/main/docs/CfWorker.md"
 
 # osascript dialogs
 
@@ -109,6 +112,32 @@ def _osascript_input(prompt: str, default: str, title: str = "TG WS Proxy") -> O
     return r.stdout.rstrip("\r\n")
 
 
+def _ask_cfworker_domain(default: str) -> Optional[str]:
+    value = default
+    while True:
+        script = (
+            f'set d to display dialog "{_esc("Cloudflare Worker домены через запятую (например, name.account.workers.dev):")}" '
+            f'default answer "{_esc(value)}" '
+            f'with title "TG WS Proxy" '
+            f'buttons {{"Закрыть", "?", "OK"}} '
+            f'default button "OK" cancel button "Закрыть"\n'
+            f'return (button returned of d) & "\\n" & (text returned of d)'
+        )
+        r = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
+        if r.returncode != 0:
+            return None
+
+        out_lines = r.stdout.splitlines()
+        button = out_lines[0].strip() if out_lines else ""
+        value = out_lines[1].strip() if len(out_lines) > 1 else value
+
+        if button == "?":
+            webbrowser.open(_CFWORKER_HELP_URL)
+            continue
+        if button == "OK":
+            return value.strip()
+
+
 # menubar icon
 
 
@@ -156,13 +185,9 @@ def _run_proxy_thread() -> None:
         loop.run_until_complete(_run(stop_event=stop_ev))
     except Exception as exc:
         log.error("Proxy thread crashed: %s", exc)
-        if "Address already in use" in str(exc):
-            _show_error(
-                "Не удалось запустить прокси:\n"
-                "Порт уже используется другим приложением.\n\n"
-                "Закройте приложение, использующее этот порт, "
-                "или измените порт в настройках прокси и перезапустите."
-            )
+        msg, _ = diagnose_listen_error(exc)
+        if msg:
+            _show_error(msg)
     finally:
         loop.close()
         _async_stop = None
@@ -396,21 +421,25 @@ def _edit_config_dialog() -> None:
     if cfproxy is None:
         return
 
-    cfproxy_priority = True
-    if cfproxy:
-        cfproxy_priority_result = _ask_yes_no_close("Приоритет CfProxy (пробовать раньше прямого TCP)?")
-        if cfproxy_priority_result is None:
-            return
-        cfproxy_priority = cfproxy_priority_result
-
     cfproxy_domain = _osascript_input(
-        "Свой CF-домен (оставьте пустым для автоматического выбора):\n"
+        "Свои CF-домены через запятую (оставьте пустым для автоматического выбора):\n"
         "DNS записи kws1-kws5,kws203 должны указывать на IP датацентров Telegram через Cloudflare.",
-        cfg.get("cfproxy_user_domain", DEFAULT_CONFIG.get("cfproxy_user_domain", "")),
+        ", ".join(coerce_domain_list(
+            cfg.get("cfproxy_user_domain", DEFAULT_CONFIG.get("cfproxy_user_domain", []))
+        )),
     )
     if cfproxy_domain is None:
         return
-    cfproxy_domain = cfproxy_domain.strip()
+    cfproxy_domains = coerce_domain_list(cfproxy_domain)
+
+    cfworker_domain = _ask_cfworker_domain(
+        ", ".join(coerce_domain_list(
+            cfg.get("cfproxy_worker_domain", DEFAULT_CONFIG.get("cfproxy_worker_domain", []))
+        ))
+    )
+    if cfworker_domain is None:
+        return
+    cfworker_domains = coerce_domain_list(cfworker_domain)
 
     new_cfg = {
         "host": host,
@@ -423,8 +452,8 @@ def _edit_config_dialog() -> None:
         "log_max_mb": adv.get("log_max_mb", cfg.get("log_max_mb", DEFAULT_CONFIG["log_max_mb"])),
         "check_updates": cfg.get("check_updates", True),
         "cfproxy": cfproxy,
-        "cfproxy_priority": cfproxy_priority,
-        "cfproxy_user_domain": cfproxy_domain,
+        "cfproxy_user_domain": cfproxy_domains,
+        "cfproxy_worker_domain": cfworker_domains,
     }
     save_config(new_cfg)
     log.info("Config saved: %s", new_cfg)
