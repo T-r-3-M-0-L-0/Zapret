@@ -67,9 +67,46 @@ if "%HAS_CRYPTO%"=="1" (
 
 :: 3. Launch
 echo [INFO] Starting tg-ws-proxy in background
-start "" /min pythonw "%~dp0tg_ws_proxy.py" --port 1080 --host 127.0.0.1 --secret c36be8ffc5f480784b4c5fc31f1eefe8
 
-echo [OK] Proxy launched. This window will close in 5 seconds
+:: Check pythonw exists
+call pythonw --version >nul 2>nul
+if errorlevel 1 (
+    echo [WARN] pythonw not found, trying python
+    call python --version >nul 2>nul
+    if errorlevel 1 (
+        echo [ERROR] Neither pythonw nor python found in PATH
+        pause
+        exit /b 1
+    )
+    set "PYTHON_EXE=python"
+) else (
+    set "PYTHON_EXE=pythonw"
+)
+
+:: Check tg_ws_proxy.py exists
+if not exist "%~dp0tg_ws_proxy.py" (
+    echo [ERROR] tg_ws_proxy.py not found at %~dp0tg_ws_proxy.py
+    pause
+    exit /b 1
+)
+
+:: Launch with error log
+set "START_LOG=%TEMP%\tg-ws-proxy-start.log"
+if exist "%START_LOG%" del "%START_LOG%"
+
+start "" /min cmd /c "%PYTHON_EXE% "%~dp0tg_ws_proxy.py" --port 1080 --host 127.0.0.1 --secret c36be8ffc5f480784b4c5fc31f1eefe8 2>"%START_LOG%""
+
+:: Wait and verify process started
+timeout /t 2 >nul
+tasklist /FI "IMAGENAME eq %PYTHON_EXE%.exe" /NH | find /I "%PYTHON_EXE%.exe" >nul
+if errorlevel 1 (
+    echo [ERROR] Proxy process did not start. Check log: %START_LOG%
+    if exist "%START_LOG%" type "%START_LOG%"
+    pause
+    exit /b 1
+)
+
+echo [OK] Proxy launched (%PYTHON_EXE%). Log: %START_LOG%
 
 :: Auto-add proxy to Telegram Desktop (wait for proxy to start)
 timeout /t 7 >nul
