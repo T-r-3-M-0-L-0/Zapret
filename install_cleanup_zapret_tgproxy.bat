@@ -10,11 +10,11 @@ if %errorlevel% neq 0 (
 )
 
 echo ==============================================
-echo   Zapret 1.9.8 + tg-ws-proxy AUTO-INSTALLER
+echo   Zapret 1.9.9c + tg-ws-proxy AUTO-INSTALLER
 echo ==============================================
 echo.
 
-:: Очистка старых служб (если есть cleanup_services.bat)
+:: Cleanup old services (if cleanup_services.bat exists)
 if exist "%~dp0cleanup_services.bat" (
     echo [PREP] Running cleanup of old services
     cmd /c ""%~dp0cleanup_services.bat""
@@ -28,7 +28,7 @@ set "LISTS=%ZAPRET_DIR%lists\"
 set "SVC_BAT=%ZAPRET_DIR%zapret_svc.bat"
 
 :: --------------------------------------------------
-:: 1. Установка драйвера WinDivert
+:: 1. Install WinDivert driver
 :: --------------------------------------------------
 echo [1/4] Installing WinDivert driver...
 
@@ -56,19 +56,19 @@ sc start %WD_SERVICE%
 echo [OK] WinDivert driver installed and started.
 
 :: --------------------------------------------------
-:: 2. Создание служебного bat для zapret
+:: 2. Generate service launcher (ALT13_01 strategy)
 :: --------------------------------------------------
 echo [2/4] Generating service launcher...
 (
 echo @echo off
 echo cd /d "%ZAPRET_DIR%"
-echo "%BIN%winws.exe" --wf-tcp=80,443,2053,2083,2087,2096,8443 --wf-udp=443,19294-19344,50000-50100,1024-65535 --filter-udp=443 --hostlist="%LISTS%list-general.txt" --hostlist="%LISTS%list-general-user.txt" --hostlist-exclude="%LISTS%list-exclude.txt" --hostlist-exclude="%LISTS%list-exclude-user.txt" --ipset-exclude="%LISTS%ipset-exclude.txt" --ipset-exclude="%LISTS%ipset-exclude-user.txt" --dpi-desync=fake --dpi-desync-repeats=6 --dpi-desync-fake-quic="%BIN%quic_initial_www_google_com.bin" --new --filter-udp=19294-19344,50000-50100 --filter-l7=discord,stun --dpi-desync=fake --dpi-desync-repeats=6 --new --filter-tcp=2053,2083,2087,2096,8443 --hostlist-domains=discord.media --dpi-desync=fake,fakedsplit --dpi-desync-repeats=6 --dpi-desync-fooling=ts --dpi-desync-fakedsplit-pattern=0x00 --dpi-desync-fake-tls="%BIN%tls_clienthello_www_google_com.bin" --new --filter-tcp=443 --hostlist="%LISTS%list-google.txt" --ip-id=zero --dpi-desync=fake,fakedsplit --dpi-desync-repeats=6 --dpi-desync-fooling=ts --dpi-desync-fakedsplit-pattern=0x00 --dpi-desync-fake-tls="%BIN%tls_clienthello_www_google_com.bin" --new --filter-tcp=80,443 --hostlist="%LISTS%list-general.txt" --hostlist="%LISTS%list-general-user.txt" --hostlist-exclude="%LISTS%list-exclude.txt" --hostlist-exclude="%LISTS%list-exclude-user.txt" --ipset-exclude="%LISTS%ipset-exclude.txt" --ipset-exclude="%LISTS%ipset-exclude-user.txt" --dpi-desync=fake,fakedsplit --dpi-desync-repeats=6 --dpi-desync-fooling=ts --dpi-desync-fakedsplit-pattern=0x00 --dpi-desync-fake-tls="%BIN%stun.bin" --dpi-desync-fake-tls="%BIN%tls_clienthello_4pda_to.bin" --dpi-desync-fake-http="%BIN%tls_clienthello_max_ru.bin" --new --filter-udp=443 --ipset="%LISTS%ipset-all.txt" --hostlist-exclude="%LISTS%list-exclude.txt" --hostlist-exclude="%LISTS%list-exclude-user.txt" --ipset-exclude="%LISTS%ipset-exclude.txt" --ipset-exclude="%LISTS%ipset-exclude-user.txt" --dpi-desync=fake --dpi-desync-repeats=6 --dpi-desync-fake-quic="%BIN%quic_initial_www_google_com.bin" --new --filter-tcp=80,443,8443 --ipset="%LISTS%ipset-all.txt" --hostlist-exclude="%LISTS%list-exclude.txt" --hostlist-exclude="%LISTS%list-exclude-user.txt" --ipset-exclude="%LISTS%ipset-exclude.txt" --ipset-exclude="%LISTS%ipset-exclude-user.txt" --dpi-desync=fake,fakedsplit --dpi-desync-repeats=6 --dpi-desync-fooling=ts --dpi-desync-fakedsplit-pattern=0x00 --dpi-desync-fake-tls="%BIN%stun.bin" --dpi-desync-fake-tls="%BIN%tls_clienthello_4pda_to.bin" --dpi-desync-fake-http="%BIN%tls_clienthello_max_ru.bin" --new --filter-udp=1024-3477,3481-19293,19345-49999,50101-65535 --dpi-desync=fake --dpi-desync-repeats=12 --dpi-desync-any-protocol=1 --dpi-desync-autottl=6 --dpi-desync-fake-unknown-udp="%BIN%quic_initial_dbankcloud_ru.bin" --dpi-desync-cutoff=n2
+echo "%BIN%winws.exe" --wf-tcp=80,443,2053,2083,2087,2096,8443 --wf-udp=443,19294-19344,50000-50100,1024-65535 --filter-udp=443 --hostlist="%LISTS%list-general.txt" --hostlist="%LISTS%list-general-user.txt" --hostlist-exclude="%LISTS%list-exclude.txt" --hostlist-exclude="%LISTS%list-exclude-user.txt" --ipset-exclude="%LISTS%ipset-exclude.txt" --ipset-exclude="%LISTS%ipset-exclude-user.txt" --dpi-desync=fake --dpi-desync-repeats=6 --dpi-desync-fake-quic="%BIN%quic_initial_www_google_com.bin" --new --filter-udp=19294-19344,50000-50100 --filter-l7=discord,stun --dpi-desync=fake --dpi-desync-repeats=6 --new --filter-tcp=2053,2083,2087,2096,8443 --hostlist-domains=discord.media --dpi-desync=fake,fakedsplit --dpi-desync-repeats=6 --dpi-desync-fooling=ts --dpi-desync-fakedsplit-pattern=0x00 --dpi-desync-fake-tls="%BIN%tls_clienthello_www_google_com.bin" --new --filter-tcp=443 --hostlist="%LISTS%list-google.txt" --ip-id=zero --dpi-desync=fake,fakedsplit --dpi-desync-repeats=6 --dpi-desync-fooling=ts --dpi-desync-fakedsplit-pattern=0x00 --dpi-desync-fake-tls="%BIN%tls_clienthello_www_google_com.bin" --new --filter-tcp=80,443 --hostlist="%LISTS%list-general.txt" --hostlist="%LISTS%list-general-user.txt" --hostlist-exclude="%LISTS%list-exclude.txt" --hostlist-exclude="%LISTS%list-exclude-user.txt" --ipset-exclude="%LISTS%ipset-exclude.txt" --ipset-exclude="%LISTS%ipset-exclude-user.txt" --dpi-desync=fake,fakedsplit --dpi-desync-repeats=6 --dpi-desync-fooling=ts --dpi-desync-fakedsplit-pattern=0x00 --dpi-desync-fake-tls="%BIN%stun.bin" --dpi-desync-fake-tls="%BIN%tls_clienthello_4pda_to.bin" --dpi-desync-fake-http="%BIN%tls_clienthello_max_ru.bin" --new --filter-udp=443 --ipset="%LISTS%ipset-all.txt" --hostlist-exclude="%LISTS%list-exclude.txt" --hostlist-exclude="%LISTS%list-exclude-user.txt" --ipset-exclude="%LISTS%ipset-exclude.txt" --ipset-exclude="%LISTS%ipset-exclude-user.txt" --dpi-desync=fake --dpi-desync-repeats=6 --dpi-desync-fake-quic="%BIN%quic_initial_www_google_com.bin" --new --filter-tcp=80,443,8443 --ipset="%LISTS%ipset-all.txt" --hostlist-exclude="%LISTS%list-exclude.txt" --hostlist-exclude="%LISTS%list-exclude-user.txt" --ipset-exclude="%LISTS%ipset-exclude.txt" --ipset-exclude="%LISTS%ipset-exclude-user.txt" --dpi-desync=fake,fakedsplit --dpi-desync-repeats=6 --dpi-desync-fooling=ts --dpi-desync-fakedsplit-pattern=0x00 --dpi-desync-fake-tls="%BIN%stun.bin" --dpi-desync-fake-tls="%BIN%tls_clienthello_4pda_to.bin" --dpi-desync-fake-http="%BIN%tls_clienthello_max_ru.bin" --new --filter-udp=1024-3477,3481-19293,19345-49999,50101-65535 --dpi-desync=fake --dpi-desync-repeats=12 --dpi-desync-any-protocol=1 --dpi-desync-autottl=1 --dpi-desync-fake-unknown-udp="%BIN%quic_initial_dbankcloud_ru.bin" --dpi-desync-cutoff=n2
 ) > "%SVC_BAT%"
 
 echo [OK] Service launcher created.
 
 :: --------------------------------------------------
-:: 3. Установка службы zapret
+:: 3. Install zapret service
 :: --------------------------------------------------
 echo [3/4] Installing zapret service...
 
@@ -83,9 +83,9 @@ if %errorlevel% equ 0 (
     timeout /t 3 >nul
 )
 
-sc create %SERVICE_NAME% binPath= "\"%SVC_BAT%\"" start= auto depend= WinDivert DisplayName= "Zapret DPI bypass (1.9.8)"
+sc create %SERVICE_NAME% binPath= "\"%SVC_BAT%\"" start= auto depend= WinDivert DisplayName= "Zapret DPI bypass (1.9.9c)"
 if %errorlevel% equ 0 (
-    sc description %SERVICE_NAME% "DPI bypass using zapret (winws) 1.9.8"
+    sc description %SERVICE_NAME% "DPI bypass using zapret (winws) 1.9.9c"
     sc start %SERVICE_NAME%
     echo [OK] zapret service installed and started as '%SERVICE_NAME%'.
     goto :task
@@ -104,7 +104,7 @@ if %RETRY_COUNT% leq 5 (
 )
 
 :: --------------------------------------------------
-:: 4. Задача для tg-ws-proxy
+:: 4. Create scheduled task for tg-ws-proxy
 :: --------------------------------------------------
 :task
 echo [4/4] Creating scheduled task for Telegram proxy...
@@ -127,7 +127,7 @@ echo.
 echo ==============================================
 echo   INSTALLATION COMPLETE!
 echo   Service name: %SERVICE_NAME%
-echo   Version: 1.9.8
+echo   Version: 1.9.9c
 echo ==============================================
 pause
 exit /b
