@@ -383,31 +383,38 @@ call :tcp_enable
 
 set ARGS=%args%
 call set "ARGS=%%ARGS:EXCL_MARK=^!%%"
-echo Final args: !ARGS!
+echo Parsed args: !ARGS!
 set SRVCNAME=zapret
 
 net stop %SRVCNAME% >nul 2>&1
 sc delete %SRVCNAME% >nul 2>&1
 
-:: Build full binPath string with proper quote escaping for sc create
-:: sc create binPath requires all inner quotes to be escaped with backslash
-set "SRVCBIN=\"%BIN_PATH%winws.exe\" !ARGS!"
+:: Use launcher batch file for reliable argument passing
+echo Creating launcher script...
+set "LAUNCHER=%~dp0zapret_service_launcher.bat"
+(
+    echo @echo off
+    echo cd /d "%~dp0"
+    echo start "zapret" /min "!BIN_PATH!winws.exe" !ARGS!
+) > "!LAUNCHER!"
 
-:: Step 1: Temporarily hide already-escaped quotes (\")
-set "SRVCBIN=!SRVCBIN:\"=##ESC##!"
-:: Step 2: Escape remaining raw quotes
-set "SRVCBIN=!SRVCBIN:"=\"!"
-:: Step 3: Restore already-escaped quotes
-set "SRVCBIN=!SRVCBIN:##ESC##=\"!"
+echo Creating service with launcher...
+sc create %SRVCNAME% binPath= "cmd.exe /c "!LAUNCHER!"" DisplayName= "zapret" start= auto
 
-echo Creating service with parsed args...
-sc create %SRVCNAME% binPath= "!SRVCBIN!" DisplayName= "zapret" start= auto
+echo Configuring service...
 sc description %SRVCNAME% "Zapret DPI bypass software"
+
+echo Starting service...
 sc start %SRVCNAME%
 
 if !errorlevel! neq 0 (
-    echo [ERROR] Failed to start service. Check the error message above.
-    echo You may need to run Diagnostics ^(option 10^) to resolve conflicts.
+    echo.
+    echo [ERROR] Service failed to start ^(error !errorlevel!^).
+    echo The launcher script was saved to: !LAUNCHER!
+    echo.
+    echo You can try running it manually to see the error:
+    echo   "!LAUNCHER!"
+    echo.
     pause
     goto menu
 )
@@ -417,6 +424,7 @@ for %%F in ("!file%stratChoice%!") do (
 )
 reg add "HKLM\System\CurrentControlSet\Services\zapret" /v zapret-discord-youtube /t REG_SZ /d "!filename!" /f
 
+echo.
 echo Service installed and started successfully.
 pause
 goto menu
@@ -985,7 +993,7 @@ if exist "%SystemRoot%\System32\curl.exe" (
         "$url = '%hostsUrl%';" ^
         "$out = '%tempFile%';" ^
         "$res = Invoke-WebRequest -Uri $url -TimeoutSec 10 -UseBasicParsing;" ^
-        "if ($res.StatusCode -eq 200) { $res.Content | Out-File -FilePath $out -Encoding UTF8 } else { exit 1 }"
+        "$res.Content | Out-File -FilePath $out -Encoding UTF8 } else { exit 1 }"
 )
 
 if not exist "%tempFile%" (
