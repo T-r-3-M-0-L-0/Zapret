@@ -6,24 +6,24 @@ chcp 65001 > nul
 :: For Honor P2P passes through because unknown UDP payloads are NOT intercepted
 
 cd /d "%~dp0"
-call service2.bat status_zapret 2>nul
-call service2.bat load_user_lists 2>nul
+
 echo:
 
 set "BIN=%~dp0bin\"
 set "LISTS=%~dp0lists\"
-cd /d %BIN%
+set "LUA=%~dp0lua\"
+set "WF=%~dp0windivert.filter\"
 
 start "zapret2: %~n0" /min "%BIN%winws2.exe" ^
 --wf-tcp-out=80,443,2053,2083,2087,2096,8443 ^
 --wf-udp-out=443 ^
---lua-init=@"%~dp0lua\zapret-lib.lua" --lua-init=@"%~dp0lua\zapret-antidpi.lua" ^
+--lua-init=@"%LUA%zapret-lib.lua" --lua-init=@"%LUA%zapret-antidpi.lua" ^
 --lua-init="fake_default_tls = tls_mod(fake_default_tls,'rnd,rndsni')" ^
---blob=quic_google:@"%~dp0files\fake\quic_initial_www_google_com.bin" ^
---blob=stun_bin:@"%~dp0files\fake\stun.bin" ^
---wf-raw-part=@"%~dp0windivert.filter\windivert_part.discord_media.txt" ^
---wf-raw-part=@"%~dp0windivert.filter\windivert_part.stun.txt" ^
---wf-raw-part=@"%~dp0windivert.filter\windivert_part.quic_initial_ietf.txt" ^
+--blob=quic_google:@"%BIN%quic_initial_www_google_com.bin" ^
+--blob=stun_bin:@"%BIN%stun.bin" ^
+--wf-raw-part=@"%WF%windivert_part.discord_media.txt" ^
+--wf-raw-part=@"%WF%windivert_part.stun.txt" ^
+--wf-raw-part=@"%WF%windivert_part.quic_initial_ietf.txt" ^
 --filter-tcp=80 --filter-l7=http ^
   --out-range=-d10 ^
   --payload=http_req ^
