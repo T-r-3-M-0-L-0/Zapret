@@ -187,12 +187,14 @@ goto menu
 cls
 chcp 437 > nul
 
-set "ZAPRET_DIR=%~dp0"
+cd /d "%~dp0"
 set "BIN_PATH=%~dp0bin\"
+set "BIN=%BIN_PATH%"
+set "LISTS_PATH=%~dp0lists\"
 
 echo Pick a strategy file:
 set "count=0"
-for /f "delims=" %%F in ('powershell -NoProfile -Command "Get-ChildItem -LiteralPath '%ZAPRET_DIR%' -Filter '*.bat' | Where-Object { $_.Name -notlike 'service*' -and $_.Name -notlike 'install*' } | Sort-Object Name | ForEach-Object { $_.Name }"') do (
+for /f "delims=" %%F in ('powershell -NoProfile -Command "Get-ChildItem -LiteralPath '.' -Filter '*.bat' | Where-Object { $_.Name -notlike 'service*' -and $_.Name -notlike 'install*' } | Sort-Object Name | ForEach-Object { $_.Name }"') do (
     set /a count+=1
     echo !count!. %%F
     set "file!count!=%%F"
@@ -244,63 +246,133 @@ if not exist "!selectedFile!" (
     goto menu
 )
 
-echo Creating launcher script...
+echo Flattening strategy file...
 
-:: Build the launcher bat file from the selected strategy
-:: Copy the strategy file but replace "start ... /min" with direct execution
-set "LAUNCHER=%~dp0zapret2_service_launcher.bat"
-
+:: Step 1: PowerShell flattens multi-line bat into single line
+:: Replaces " ^\r\n  " patterns with single space
+set "TEMP_FILE=%TEMP%\zapret2_flat.txt"
 powershell -NoProfile -Command "
-    $file='!selectedFile!';
-    $root='!ZAPRET_DIR!';
-    $content=[IO.File]::ReadAllText($file);
-    # Replace start command with direct execution for service
-    $content=$content -replace 'start\s+\"[^\"]*\"\s+/min\s+', '';
-    # Ensure cd /d to root
-    if (-not ($content -match 'cd /d \"%~dp0\"')) {
-        $content='@echo off'+[Environment]::NewLine+'cd /d \"%~dp0\"'+[Environment]::NewLine+$content;
-    }
-    [IO.File]::WriteAllText('!LAUNCHER!', $content);
-    Write-Output 'Launcher created successfully';
+    $content = [IO.File]::ReadAllText('!selectedFile!');
+    $content = $content -replace ' \^\r?\n\s*', ' ';
+    $content = $content -replace '\r?\n', ' ';
+    $content = $content -replace '\s+', ' ';
+    [IO.File]::WriteAllText('%TEMP_FILE%', $content.Trim());
 "
 
-if not exist "!LAUNCHER!" (
-    echo ERROR: Failed to create launcher script.
+if not exist "%TEMP_FILE%" (
+    echo ERROR: Failed to flatten strategy file.
     pause
     goto menu
 )
 
-echo Creating service with launcher...
+echo Parsing flattened strategy...
+
+:: Step 2: Parse flattened single line exactly like original service.bat
+set "args_with_value=sni host altorder"
+set "args="
+set "capture=0"
+set "mergeargs=0"
+set QUOTE="
+
+for /f "tokens=* eol=" %%a in ('type "%TEMP_FILE%"') do (
+    set "line=%%a"
+    call set "line=%%line:^!=EXCL_MARK%%"
+
+    echo !line! | findstr /i "%BIN%winws2.exe" >nul 2>&1
+    if not errorlevel 1 (
+        set "capture=1"
+    )
+
+    if !capture!==1 (
+        if not defined args (
+            set "line=!line:*%BIN%winws2.exe"=!"
+        )
+
+        set "temp_args="
+        for %%i in (!line!) do (
+            set "arg=%%i"
+
+            if not "!arg!"=="^" (
+                if "!arg:~0,2!" EQU "--" if not !mergeargs!==0 (
+                    set "mergeargs=0"
+                )
+
+                if "!arg:~0,1!" EQU "!QUOTE!" (
+                    set "arg=!arg:~1,-1!"
+
+                    echo !arg! | findstr ":" >nul 2>&1
+                    if !errorlevel!==0 (
+                        set "arg=\!QUOTE!!arg!\!QUOTE!"
+                    ) else if "!arg:~0,1!"=="@" (
+                        set "arg=\!QUOTE!@%~dp0!arg:~1!\!QUOTE!"
+                    ) else if "!arg:~0,5!"=="%%BIN%%" (
+                        set "arg=\!QUOTE!!BIN_PATH!!arg:~5!\!QUOTE!"
+                    ) else if "!arg:~0,7!"=="%%LISTS%%" (
+                        set "arg=\!QUOTE!!LISTS_PATH!!arg:~7!\!QUOTE!"
+                    ) else if "!arg:~0,5!"=="%%LUA%%" (
+                        set "arg=\!QUOTE!%~dp0lua\!arg:~5!\!QUOTE!"
+                    ) else if "!arg:~0,4!"=="%%WF%%" (
+                        set "arg=\!QUOTE!%~dp0windivert.filter\!arg:~4!\!QUOTE!"
+                    ) else (
+                        set "arg=\!QUOTE!%~dp0!arg!\!QUOTE!"
+                    )
+                ) else if "!arg:~0,12!" EQU "%%GameFilter%%" (
+                    set "arg=%GameFilter%"
+                ) else if "!arg:~0,15!" EQU "%%GameFilterTCP%%" (
+                    set "arg=%GameFilterTCP%"
+                ) else if "!arg:~0,15!" EQU "%%GameFilterUDP%%" (
+                    set "arg=%GameFilterUDP%"
+                )
+
+                if !mergeargs!==1 (
+                    set "temp_args=!temp_args!,!arg!"
+                ) else if !mergeargs!==3 (
+                    set "temp_args=!temp_args!=!arg!"
+                    set "mergeargs=1"
+                ) else (
+                    set "temp_args=!temp_args! !arg!"
+                )
+
+                if "!arg:~0,2!" EQU "--" (
+                    set "mergeargs=2"
+                ) else if !mergeargs! GEQ 1 (
+                    if !mergeargs!==2 set "mergeargs=1"
+
+                    for %%x in (!args_with_value!) do (
+                        if /i "%%x"=="!arg!" (
+                            set "mergeargs=3"
+                        )
+                    )
+                )
+            )
+        )
+
+        if not "!temp_args!"=="" (
+            set "args=!args! !temp_args!"
+        )
+    )
+)
+
+del "%TEMP_FILE%" >nul 2>&1
+
+call :tcp_enable
+
+set ARGS=%args%
+call set "ARGS=%%ARGS:EXCL_MARK=^!%%"
+echo Final args: !ARGS!
 set SRVCNAME=zapret
 
 net stop %SRVCNAME% >nul 2>&1
 sc delete %SRVCNAME% >nul 2>&1
-
-:: Use cmd.exe /c to run the launcher bat
-sc create %SRVCNAME% binPath= "cmd.exe /c \"!LAUNCHER!\"" DisplayName= "zapret" start= auto
+sc create %SRVCNAME% binPath= "\"%BIN_PATH%winws2.exe\" !ARGS!" DisplayName= "zapret" start= auto
 sc description %SRVCNAME% "Zapret2 DPI bypass software"
-
-echo Starting service...
 sc start %SRVCNAME%
-
-if !errorlevel! neq 0 (
-    echo.
-    echo [ERROR] Service failed to start.
-    echo The launcher script was saved to: !LAUNCHER!
-    echo You can try running it manually:
-    echo   "!LAUNCHER!"
-    echo.
-    pause
-    goto menu
-)
 
 for %%F in ("!file%stratChoice%!") do (
     set "filename=%%~nF"
 )
 reg add "HKLM\System\CurrentControlSet\Services\zapret" /v zapret-discord-youtube /t REG_SZ /d "!filename!" /f
 
-echo.
-echo Service installed and started successfully.
 pause
 goto menu
 
@@ -313,52 +385,44 @@ cls
 echo === Zapret2 Diagnostics ===
 echo.
 
-:: Check winws2.exe
 set "BIN_PATH=%~dp0bin\"
 if exist "%BIN_PATH%winws2.exe" (
     call :PrintGreen "winws2.exe found"
 ) else (
-    call :PrintRed "[X] winws2.exe NOT found. Download from:"
-    call :PrintRed "    https://github.com/bol-van/zapret2/releases"
+    call :PrintRed "[X] winws2.exe NOT found"
+    call :PrintYellow "Download: https://github.com/bol-van/zapret2/releases"
 )
 echo:
 
-:: Check lua files
 if exist "%~dp0lua\zapret-lib.lua" (
     call :PrintGreen "zapret-lib.lua found"
 ) else (
-    call :PrintRed "[X] lua\zapret-lib.lua NOT found"
+    call :PrintRed "[X] zapret-lib.lua NOT found"
 )
 
 if exist "%~dp0lua\zapret-antidpi.lua" (
     call :PrintGreen "zapret-antidpi.lua found"
 ) else (
-    call :PrintRed "[X] lua\zapret-antidpi.lua NOT found"
+    call :PrintRed "[X] zapret-antidpi.lua NOT found"
 )
 echo:
 
-:: Check windivert filters
-set "WF_PATH=%~dp0windivert.filter\"
-set "wf_ok=1"
+set "WF_OK=1"
 for %%f in (discord_media stun quic_initial_ietf) do (
-    if exist "!WF_PATH!windivert_part.%%f.txt" (
+    if exist "%~dp0windivert.filter\windivert_part.%%f.txt" (
         echo [OK] windivert_part.%%f.txt
     ) else (
         call :PrintRed "[X] windivert_part.%%f.txt NOT found"
-        set "wf_ok=0"
+        set "WF_OK=0"
     )
 )
-if !wf_ok!==0 (
-    echo.
-    call :PrintYellow "Download windivert filters from zapret2 release zip:"
-    call :PrintYellow "https://github.com/bol-van/zapret2/releases"
+if !WF_OK!==0 (
+    call :PrintYellow "Download from zapret2 release zip"
 )
 echo:
 
-:: Check fake binaries
-set "FAKE_PATH=%~dp0bin\"
 for %%b in (quic_initial_www_google_com stun tls_clienthello_www_google_com) do (
-    if exist "!FAKE_PATH!%%b.bin" (
+    if exist "%~dp0bin\%%b.bin" (
         echo [OK] %%b.bin
     ) else (
         call :PrintRed "[X] %%b.bin NOT found"
@@ -366,21 +430,11 @@ for %%b in (quic_initial_www_google_com stun tls_clienthello_www_google_com) do 
 )
 echo:
 
-:: Base Filtering Engine
 sc query BFE | findstr /I "RUNNING" > nul
 if !errorlevel!==0 (
-    call :PrintGreen "Base Filtering Engine: RUNNING"
+    call :PrintGreen "BFE: RUNNING"
 ) else (
     call :PrintRed "[X] BFE not running"
-)
-echo:
-
-:: Check running
-sc query "zapret" | findstr /I "RUNNING" > nul
-if !errorlevel!==0 (
-    call :PrintGreen "zapret service: RUNNING"
-) else (
-    call :PrintYellow "zapret service: NOT running"
 )
 
 tasklist /FI "IMAGENAME eq winws2.exe" | find /I "winws2.exe" > nul
@@ -428,8 +482,8 @@ exit /b 0
 :check_extracted
 set "extracted=1"
 if not exist "%~dp0bin\winws2.exe" (
-    call :PrintRed "winws2.exe not found in bin\ folder."
-    call :PrintYellow "Download from: https://github.com/bol-van/zapret2/releases"
+    call :PrintRed "winws2.exe not found"
+    call :PrintYellow "Download: https://github.com/bol-van/zapret2/releases"
     set "extracted=0"
 )
 if "%extracted%"=="0" (
