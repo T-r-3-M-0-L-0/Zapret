@@ -188,7 +188,6 @@ cls
 chcp 437 > nul
 
 set "ZAPRET_DIR=%~dp0"
-set "ZAPRET_DIR=%ZAPRET_DIR:~0,-1%"
 set "BIN_PATH=%~dp0bin\"
 
 echo Pick a strategy file:
@@ -245,41 +244,63 @@ if not exist "!selectedFile!" (
     goto menu
 )
 
-echo Parsing strategy file...
+echo Creating launcher script...
 
-:: Parse multi-line arguments using PowerShell
-:: 1. Read entire file as single string
-:: 2. Replace line continuations (^ at end of line + newline + spaces) with single space
-:: 3. Remove everything before winws2.exe
-:: 4. Remove everything after & (if present)
-:: 5. Collapse multiple spaces into one
-for /f "delims=" %%A in (
-    'powershell -NoProfile -Command "$f='!selectedFile!'; $d='!ZAPRET_DIR!'; $content=[IO.File]::ReadAllText($f); $content=$content -replace '\r?\n\s*\^?\s*',' '; $content=$content -replace '.*winws2\.exe\s*',''; $amp=$content.IndexOf('&'); if($amp -ge 0){$content=$content.Substring(0,$amp)}; $content=$content -replace '\s+',' '.Trim(); $content=$content -replace [regex]::Escape('%%LISTS%%'),'\"'+$d+'\lists\"'; $content=$content -replace [regex]::Escape('%%BIN%%'),'\"'+$d+'\bin\"'; $content=$content -replace [regex]::Escape('%%LUA%%'),'\"'+$d+'\lua\"'; $content=$content -replace [regex]::Escape('%%WF%%'),'\"'+$d+'\windivert.filter\"'; $content=$content -replace [regex]::Escape('%~dp0'),$d+'\'; Write-Output $content"
-') do set "ARGS=%%A"
+:: Build the launcher bat file from the selected strategy
+:: Copy the strategy file but replace "start ... /min" with direct execution
+set "LAUNCHER=%~dp0zapret2_service_launcher.bat"
 
-if not defined ARGS (
-    echo ERROR: Could not parse arguments from strategy file.
-    echo Make sure it contains a line with winws2.exe.
+powershell -NoProfile -Command "
+    $file='!selectedFile!';
+    $root='!ZAPRET_DIR!';
+    $content=[IO.File]::ReadAllText($file);
+    # Replace start command with direct execution for service
+    $content=$content -replace 'start\s+\"[^\"]*\"\s+/min\s+', '';
+    # Ensure cd /d to root
+    if (-not ($content -match 'cd /d \"%~dp0\"')) {
+        $content='@echo off'+[Environment]::NewLine+'cd /d \"%~dp0\"'+[Environment]::NewLine+$content;
+    }
+    [IO.File]::WriteAllText('!LAUNCHER!', $content);
+    Write-Output 'Launcher created successfully';
+"
+
+if not exist "!LAUNCHER!" (
+    echo ERROR: Failed to create launcher script.
     pause
     goto menu
 )
 
-echo Parsed args: !ARGS!
+echo Creating service with launcher...
 set SRVCNAME=zapret
-
-call :tcp_enable
 
 net stop %SRVCNAME% >nul 2>&1
 sc delete %SRVCNAME% >nul 2>&1
-sc create %SRVCNAME% binPath= "\"%BIN_PATH%winws2.exe\" !ARGS!" DisplayName= "zapret" start= auto
+
+:: Use cmd.exe /c to run the launcher bat
+sc create %SRVCNAME% binPath= "cmd.exe /c \"!LAUNCHER!\"" DisplayName= "zapret" start= auto
 sc description %SRVCNAME% "Zapret2 DPI bypass software"
+
+echo Starting service...
 sc start %SRVCNAME%
+
+if !errorlevel! neq 0 (
+    echo.
+    echo [ERROR] Service failed to start.
+    echo The launcher script was saved to: !LAUNCHER!
+    echo You can try running it manually:
+    echo   "!LAUNCHER!"
+    echo.
+    pause
+    goto menu
+)
 
 for %%F in ("!file%stratChoice%!") do (
     set "filename=%%~nF"
 )
 reg add "HKLM\System\CurrentControlSet\Services\zapret" /v zapret-discord-youtube /t REG_SZ /d "!filename!" /f
 
+echo.
+echo Service installed and started successfully.
 pause
 goto menu
 
