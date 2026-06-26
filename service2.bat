@@ -248,26 +248,33 @@ if not exist "!selectedFile!" (
 
 echo Flattening strategy file...
 
-:: Step 1: PowerShell flattens multi-line bat into single line
-:: Replaces " ^\r\n  " patterns with single space
+:: Write PowerShell script to temp file (avoids CMD $ variable expansion issues)
 set "TEMP_FILE=%TEMP%\zapret2_flat.txt"
-powershell -NoProfile -Command "
-    $content = [IO.File]::ReadAllText('!selectedFile!');
-    $content = $content -replace ' \^\r?\n\s*', ' ';
-    $content = $content -replace '\r?\n', ' ';
-    $content = $content -replace '\s+', ' ';
-    [IO.File]::WriteAllText('%TEMP_FILE%', $content.Trim());
-"
+set "PS1_FILE=%TEMP%\zapret2_flatten.ps1"
+(
+    echo $infile = $args[0]
+    echo $outfile = $args[1]
+    echo $content = [IO.File]::ReadAllText($infile)
+    echo $content = $content -replace ' \^\r?\n\s*', ' '
+    echo $content = $content -replace '\r?\n', ' '
+    echo $content = $content -replace '\s+', ' '
+    echo [IO.File]::WriteAllText($outfile, $content.Trim())
+) > "%PS1_FILE%"
+
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PS1_FILE%" "!selectedFile!" "%TEMP_FILE%"
 
 if not exist "%TEMP_FILE%" (
     echo ERROR: Failed to flatten strategy file.
+    del "%PS1_FILE%" >nul 2>&1
     pause
     goto menu
 )
 
+del "%PS1_FILE%" >nul 2>&1
+
 echo Parsing flattened strategy...
 
-:: Step 2: Parse flattened single line exactly like original service.bat
+:: Step 2: Parse flattened single line with original Flowseal logic
 set "args_with_value=sni host altorder"
 set "args="
 set "capture=0"
